@@ -8,6 +8,12 @@ interface Notification {
   sendTime: string;
 }
 
+interface AiSuggestion {
+  strategy: string;
+  title: string;
+  subtitle: string;
+}
+
 export default function Home() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [tag, setTag] = useState('');
@@ -18,6 +24,7 @@ export default function Home() {
   const [titleCount, setTitleCount] = useState(0);
   const [subtitleCount, setSubtitleCount] = useState(0);
   const [isPolishing, setIsPolishing] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
 
   const MAX_NOTIFICATIONS = 5;
 
@@ -123,10 +130,15 @@ export default function Home() {
     }
 
     setIsPolishing(true);
+    setAiSuggestions([]);
     try {
-      const promptText = `請幫我潤飾以下 App 推播通知的文案，目標是提升用戶的點擊意願，並適度加入生動的 emoji。
-請回傳單純的 JSON 格式，不要包含任何 markdown 語法，格式為：
-{"title": "潤飾後的標題(限制50字內)", "subtitle": "潤飾後的副標(限制100字內)"}
+      const promptText = `請幫我潤飾以下 App 推播通知的文案，產生 3 個不同策略版本（急迫型、情感型、好奇型），目標是提升用戶的點擊意願，並適度加入生動的 emoji。
+請回傳單純的 JSON 陣列，不要包含任何 markdown 語法，格式為：
+[
+  {"strategy": "急迫型", "title": "潤飾後的標題(限制50字內)", "subtitle": "潤飾後的副標(限制100字內)"},
+  {"strategy": "情感型", "title": "...", "subtitle": "..."},
+  {"strategy": "好奇型", "title": "...", "subtitle": "..."}
+]
 
 原始標題：${title}
 原始副標：${subtitle}`;
@@ -146,16 +158,12 @@ export default function Home() {
       }
 
       const data = await response.json();
-      const aiResponseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      let aiResponseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (aiResponseText) {
-        const result = JSON.parse(aiResponseText);
-        if (result.title) {
-          setTitle(result.title);
-          setTitleCount(result.title.length);
-        }
-        if (result.subtitle) {
-          setSubtitle(result.subtitle);
-          setSubtitleCount(result.subtitle.length);
+        aiResponseText = aiResponseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const results = JSON.parse(aiResponseText);
+        if (Array.isArray(results)) {
+          setAiSuggestions(results);
         }
       }
     } catch (error: any) {
@@ -307,6 +315,40 @@ export default function Home() {
                 {isPolishing ? '✨ 潤飾中...' : '✨ AI 文案潤飾'}
               </button>
             </div>
+
+            {/* AI 潤飾建議列表 */}
+            {aiSuggestions.length > 0 && (
+              <div className="space-y-3 mt-4">
+                <div className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <span>💡 點選套用 AI 建議：</span>
+                  <button 
+                    onClick={() => setAiSuggestions([])}
+                    className="text-gray-400 hover:text-gray-600 text-xs px-2 py-1 rounded bg-gray-100 transition-colors"
+                  >
+                    關閉
+                  </button>
+                </div>
+                <div className="grid gap-3">
+                  {aiSuggestions.map((suggestion, index) => (
+                    <div 
+                      key={index}
+                      onClick={() => {
+                        setTitle(suggestion.title);
+                        setTitleCount(suggestion.title.length);
+                        setSubtitle(suggestion.subtitle || '');
+                        setSubtitleCount((suggestion.subtitle || '').length);
+                        setAiSuggestions([]);
+                      }}
+                      className="border border-purple-200 bg-purple-50 hover:bg-purple-100 p-3 rounded-lg cursor-pointer transition-colors shadow-sm"
+                    >
+                      <div className="text-xs font-bold text-purple-600 mb-1">【{suggestion.strategy}】</div>
+                      <div className="text-sm font-bold text-gray-800 mb-1">{suggestion.title}</div>
+                      <div className="text-xs text-gray-600">{suggestion.subtitle}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* 日期時間 */}
             <div>
