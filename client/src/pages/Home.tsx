@@ -454,12 +454,10 @@ export default function Home() {
                           📢
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="inline-block border border-red-500 text-red-500 px-2 py-0.5 rounded-full text-xs font-semibold">
+                          <div className="text-sm font-semibold text-gray-800 mb-1 line-clamp-2">
+                            <span className="inline-block border border-red-500 text-red-500 px-1.5 py-0.5 rounded text-xs font-semibold mr-1.5 align-middle" style={{ verticalAlign: 'text-bottom' }}>
                               {escapeHtml(notif.tag)}
                             </span>
-                          </div>
-                          <div className="text-sm font-semibold text-gray-800 mb-1 line-clamp-2">
                             {escapeHtml(notif.title)}
                           </div>
                           {notif.subtitle && (
