@@ -12,6 +12,7 @@ interface AiSuggestion {
   strategy: string;
   title: string;
   subtitle: string;
+  reason: string;
 }
 
 export default function Home() {
@@ -25,6 +26,7 @@ export default function Home() {
   const [subtitleCount, setSubtitleCount] = useState(0);
   const [isPolishing, setIsPolishing] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
+  const [campaignType, setCampaignType] = useState('');
 
   const MAX_NOTIFICATIONS = 5;
 
@@ -132,23 +134,32 @@ export default function Home() {
     setIsPolishing(true);
     setAiSuggestions([]);
     try {
-      const promptText = `你是一位資深的「品牌行銷人員」，專精於 App 推播策略。你的核心目標是設計出讓用戶在收到通知的瞬間感到「驚喜與好奇」的文案，從而大幅提升點擊率。
+      const campaignContext = campaignType ? `\n活動類型：${campaignType}（請根據此類型調整文案的心理策略）` : '';
 
-請嚴格遵守以下三大設計原則：
-1. 字數控制：手機推播預覽通常只顯示前 18-22 個中文字，請確保最吸引人、最重要的資訊出現在前 20 字內，避免關鍵訊息被截斷。
-2. 善用 Emoji：加入相關 Emoji 增加視覺層次感與親切感，使通知在列表中脫穎而出，但請適量，不要過度堆疊影響閱讀。
-3. 營造對話感：使用口語化、去廣告感的語氣，嘗試以拋出問題或描述生活化場景的方式開場，讓用戶感覺是在與真人對話，而非接收群發廣告。
+      const promptText = `你是一位頂尖的 App 推播點擊率（CTR）優化專家，精通消費者心理學與行動行銷。你的唯一目標是：讓用戶看到通知的瞬間，無法抑制地想點進去。${campaignContext}
 
-請針對以下原始文案，提供 3 組不同切入點的推播文案：
-- 限時懸念感：製造時間壓迫感或懸念，誘發用戶立即點擊的衝動
-- 利益直觀感：直接呈現用戶能獲得的具體利益或好處
-- 生活共鳴感：從用戶生活情境切入，引發情感共鳴
+## 三大 CTR 設計原則
+
+1. 前20字法則：手機通知預覽只顯示前 18-22 個中文字。「鉤子」必須在前20字內命中用戶，後面的字是加分，不是重點。
+2. 心理觸發器：每個版本必須明確運用一種心理機制（好奇缺口、FOMO 損失規避、利益具體化、社交認同、生活場景共鳴），不能混用，要集中火力。
+3. 去廣告感：禁止使用「限時」「獨家」「立即」「快來」等廣告詞彙開頭。改用提問、場景描述、或像朋友傳訊的口吻——讓用戶以為這條通知是專門為他發的。
+
+## 請提供 3 組文案，每組使用不同心理觸發器
+
+- 好奇缺口（Curiosity Gap）：製造資訊不完整感，讓用戶「不點就不知道答案」
+- 損失規避（FOMO）：強調「不點就會錯過」，利用人類厭惡損失的本能
+- 具體利益（Benefit Clarity）：直接告訴用戶點擊後能得到什麼具體好處，數字化、可視化
 
 請回傳單純的 JSON 陣列，不要包含任何 markdown 語法，格式為：
 [
-  {"strategy": "限時懸念感", "title": "標題（前20字最關鍵，總長限50字內）", "subtitle": "副標（口語化導讀，限100字內）"},
-  {"strategy": "利益直觀感", "title": "...", "subtitle": "..."},
-  {"strategy": "生活共鳴感", "title": "...", "subtitle": "..."}
+  {
+    "strategy": "好奇缺口",
+    "title": "標題（前20字必須有鉤子，總長限50字內）",
+    "subtitle": "副標（延續好奇或補充細節，口語化，限100字內）",
+    "reason": "一句話說明這個版本如何觸發點擊心理（15字內）"
+  },
+  {"strategy": "損失規避", "title": "...", "subtitle": "...", "reason": "..."},
+  {"strategy": "具體利益", "title": "...", "subtitle": "...", "reason": "..."}
 ]
 
 原始標題：${title}
@@ -288,6 +299,26 @@ export default function Home() {
               </div>
             )}
 
+            {/* 活動類型（AI CTR 優化用） */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                活動類型 <span className="text-xs text-purple-500 font-normal">（AI 優化參考）</span>
+              </label>
+              <select
+                value={campaignType}
+                onChange={(e) => setCampaignType(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
+              >
+                <option value="">-- 不指定（通用優化）--</option>
+                <option value="促銷折扣">💰 促銷折扣</option>
+                <option value="抽獎活動">🎁 抽獎活動</option>
+                <option value="新品上架">🆕 新品上架</option>
+                <option value="會員專屬">👑 會員專屬</option>
+                <option value="限時搶購">⚡ 限時搶購</option>
+                <option value="品牌資訊">📢 品牌資訊</option>
+              </select>
+            </div>
+
             {/* 標題 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -331,7 +362,7 @@ export default function Home() {
             {aiSuggestions.length > 0 && (
               <div className="space-y-3 mt-4">
                 <div className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <span>💡 點選套用 AI 建議：</span>
+                  <span>🎯 點選套用（CTR 優化建議）：</span>
                   <button 
                     onClick={() => setAiSuggestions([])}
                     className="text-gray-400 hover:text-gray-600 text-xs px-2 py-1 rounded bg-gray-100 transition-colors"
@@ -352,9 +383,16 @@ export default function Home() {
                       }}
                       className="border border-purple-200 bg-purple-50 hover:bg-purple-100 p-3 rounded-lg cursor-pointer transition-colors shadow-sm"
                     >
-                      <div className="text-xs font-bold text-purple-600 mb-1">【{suggestion.strategy}】</div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">⚡ {suggestion.strategy}</span>
+                      </div>
                       <div className="text-sm font-bold text-gray-800 mb-1">{suggestion.title}</div>
-                      <div className="text-xs text-gray-600">{suggestion.subtitle}</div>
+                      <div className="text-xs text-gray-500 mb-2">{suggestion.subtitle}</div>
+                      {suggestion.reason && (
+                        <div className="text-xs text-purple-600 bg-white border border-purple-100 rounded px-2 py-1">
+                          💡 {suggestion.reason}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
