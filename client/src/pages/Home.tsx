@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface Notification {
   id: number;
@@ -121,78 +121,36 @@ export default function Home() {
       return;
     }
 
-    let apiKey = import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('GEMINI_API_KEY');
-    if (!apiKey) {
-      apiKey = prompt('請輸入您的 Gemini API Key (只需輸入一次，會記錄在瀏覽器中)：');
-      if (apiKey) {
-        localStorage.setItem('GEMINI_API_KEY', apiKey);
-      } else {
-        return;
-      }
-    }
-
     setIsPolishing(true);
     setAiSuggestions([]);
     try {
-      const campaignContext = campaignType ? `\n活動類型：${campaignType}（請根據此類型調整文案的心理策略）` : '';
-
-      const promptText = `你是一位頂尖的 App 推播點擊率（CTR）優化專家，精通消費者心理學與行動行銷。你的唯一目標是：讓用戶看到通知的瞬間，無法抑制地想點進去。${campaignContext}
-
-## 三大 CTR 設計原則
-
-1. 前20字法則：手機通知預覽只顯示前 18-22 個中文字。「鉤子」必須在前20字內命中用戶，後面的字是加分，不是重點。
-2. 心理觸發器：每個版本必須明確運用一種心理機制（好奇缺口、FOMO 損失規避、利益具體化、社交認同、生活場景共鳴），不能混用，要集中火力。
-3. 去廣告感：禁止使用「限時」「獨家」「立即」「快來」等廣告詞彙開頭。改用提問、場景描述、或像朋友傳訊的口吻——讓用戶以為這條通知是專門為他發的。
-
-## 請提供 3 組文案，每組使用不同心理觸發器
-
-- 好奇缺口（Curiosity Gap）：製造資訊不完整感，讓用戶「不點就不知道答案」
-- 損失規避（FOMO）：強調「不點就會錯過」，利用人類厭惡損失的本能
-- 具體利益（Benefit Clarity）：直接告訴用戶點擊後能得到什麼具體好處，數字化、可視化
-
-請回傳單純的 JSON 陣列，不要包含任何 markdown 語法，格式為：
-[
-  {
-    "strategy": "好奇缺口",
-    "title": "標題（前20字必須有鉤子，總長限50字內）",
-    "subtitle": "副標（延續好奇或補充細節，口語化，限100字內）",
-    "reason": "一句話說明這個版本如何觸發點擊心理（15字內）"
-  },
-  {"strategy": "損失規避", "title": "...", "subtitle": "...", "reason": "..."},
-  {"strategy": "具體利益", "title": "...", "subtitle": "...", "reason": "..."}
-]
-
-原始標題：${title}
-原始副標：${subtitle}`;
-
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
+      let response = await fetch('/api/polish-copy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: promptText }] }],
-          generationConfig: { responseMimeType: "application/json" }
-        })
+        body: JSON.stringify({ title, subtitle, campaignType })
       });
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error?.message || 'API 請求失敗');
+      if (response.status === 401) {
+        const apiKey = prompt('請輸入您的 Gemini API Key（只會用於本次請求，不會儲存在瀏覽器中）：');
+        if (!apiKey) return;
+
+        response = await fetch('/api/polish-copy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, subtitle, campaignType, apiKey })
+        });
       }
 
       const data = await response.json();
-      let aiResponseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (aiResponseText) {
-        aiResponseText = aiResponseText.replace(/```json/gi, '').replace(/```/g, '').trim();
-        const results = JSON.parse(aiResponseText);
-        if (Array.isArray(results)) {
-          setAiSuggestions(results);
-        }
+      if (!response.ok) {
+        throw new Error(data.error || 'API 請求失敗');
+      }
+
+      if (Array.isArray(data.suggestions)) {
+        setAiSuggestions(data.suggestions);
       }
     } catch (error: any) {
       alert('潤飾失敗：' + error.message);
-      if (error.message.includes('API_KEY_INVALID')) {
-        localStorage.removeItem('GEMINI_API_KEY');
-      }
     } finally {
       setIsPolishing(false);
     }
@@ -251,12 +209,6 @@ export default function Home() {
     const hh = String(date.getHours()).padStart(2, '0');
     const min = String(date.getMinutes()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
-  };
-
-  const escapeHtml = (text: string) => {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
   };
 
   return (
@@ -449,7 +401,7 @@ export default function Home() {
                       className="flex justify-between items-center bg-gray-50 p-3 rounded border-l-4 border-yellow-400"
                     >
                       <div className="flex-1 min-w-0 text-sm text-gray-700">
-                        <strong>{escapeHtml(notif.tag)}</strong>: {escapeHtml(notif.title)}
+                        <strong>{notif.tag}</strong>: {notif.title}
                       </div>
                       <button
                         onClick={() => deleteNotification(notif.id)}
@@ -505,13 +457,13 @@ export default function Home() {
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-semibold text-gray-800 mb-1 line-clamp-2">
                             <span className="inline-block border border-red-500 text-red-500 px-1.5 py-0.5 rounded text-xs font-semibold mr-1.5 align-middle" style={{ verticalAlign: 'text-bottom' }}>
-                              {escapeHtml(notif.tag)}
+                              {notif.tag}
                             </span>
-                            {escapeHtml(notif.title)}
+                            {notif.title}
                           </div>
                           {notif.subtitle && (
                             <div className="text-xs text-gray-600 mb-1 line-clamp-2">
-                              {escapeHtml(notif.subtitle)}
+                              {notif.subtitle}
                             </div>
                           )}
                           <div className="flex justify-between text-xs text-gray-400">

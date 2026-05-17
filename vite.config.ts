@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react";
 import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, type Plugin, type ViteDevServer } from "vite";
-import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
+import { polishCopyWithGemini } from "./server/gemini";
 
 // =============================================================================
 // Manus Debug Collector - Vite Plugin
@@ -150,7 +150,41 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
+function vitePluginGeminiApi(): Plugin {
+  return {
+    name: "gemini-api",
+
+    configureServer(server: ViteDevServer) {
+      server.middlewares.use("/api/polish-copy", (req, res, next) => {
+        if (req.method !== "POST") {
+          return next();
+        }
+
+        let body = "";
+        req.on("data", (chunk) => {
+          body += chunk.toString();
+        });
+
+        req.on("end", async () => {
+          try {
+            const result = await polishCopyWithGemini(JSON.parse(body || "{}"));
+            res.writeHead(result.status, { "Content-Type": "application/json" });
+            res.end(JSON.stringify(result.body));
+          } catch (error) {
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: error instanceof Error ? error.message : "伺服器錯誤" }));
+          }
+        });
+      });
+    },
+  };
+}
+
+const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginGeminiApi()];
+
+if (process.env.NODE_ENV !== "production") {
+  plugins.push(vitePluginManusDebugCollector());
+}
 
 export default defineConfig({
   plugins,

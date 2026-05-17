@@ -2,6 +2,7 @@ import express from "express";
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
+import { polishCopyWithGemini } from "./gemini";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,6 +10,17 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const server = createServer(app);
+
+  app.use(express.json({ limit: "64kb" }));
+
+  app.post("/api/polish-copy", async (req, res) => {
+    try {
+      const result = await polishCopyWithGemini(req.body);
+      res.status(result.status).json(result.body);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "伺服器錯誤" });
+    }
+  });
 
   // Serve static files from dist/public in production
   const staticPath =
