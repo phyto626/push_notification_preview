@@ -7,6 +7,11 @@ import { polishCopyWithGemini } from "./gemini";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// In-memory rate limiting for F2 safety requirements
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 10; // 10 requests per minute
+
 async function startServer() {
   const app = express();
   const server = createServer(app);
@@ -14,6 +19,23 @@ async function startServer() {
   app.use(express.json({ limit: "64kb" }));
 
   app.post("/api/polish-copy", async (req, res) => {
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
+    const now = Date.now();
+    const clientData = rateLimitMap.get(ip) || { count: 0, resetTime: now + RATE_LIMIT_WINDOW_MS };
+    
+    if (now > clientData.resetTime) {
+      clientData.count = 1;
+      clientData.resetTime = now + RATE_LIMIT_WINDOW_MS;
+    } else {
+      clientData.count++;
+    }
+    rateLimitMap.set(ip, clientData);
+
+    if (clientData.count > RATE_LIMIT_MAX_REQUESTS) {
+      res.status(429).json({ error: "請求次數過多，請稍後再試" });
+      return;
+    }
+
     try {
       const result = await polishCopyWithGemini(req.body);
       res.status(result.status).json(result.body);

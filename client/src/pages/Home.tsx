@@ -159,17 +159,6 @@ export default function Home() {
         body: JSON.stringify({ title, subtitle, campaignType })
       });
 
-      if (response.status === 401) {
-        const apiKey = prompt('請輸入您的 Gemini API Key（只會用於本次請求，不會儲存在瀏覽器中）：');
-        if (!apiKey) return;
-
-        response = await fetch('/api/polish-copy', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, subtitle, campaignType, apiKey })
-        });
-      }
-
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || 'API 請求失敗');
@@ -179,7 +168,7 @@ export default function Home() {
         setAiSuggestions(data.suggestions);
       }
     } catch (error: any) {
-      toast.error('潤飾失敗：' + error.message);
+      toast.error('AI 潤飾暫時無法使用');
     } finally {
       setIsPolishing(false);
     }
@@ -297,31 +286,52 @@ export default function Home() {
 
             {/* 標題 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                標題文字 *{' '}
-                <span className="text-xs text-gray-500">({title.length}/50)</span>
-              </label>
+              <div className="flex justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  標題文字 *
+                </label>
+                {title.length > 36 && (
+                  <span className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded border border-red-200">標題過長，將被截斷</span>
+                )}
+              </div>
               <textarea
                 value={title}
                 onChange={e => setTitle(e.target.value)}
                 maxLength={50}
                 placeholder="輸入通知標題，最多 50 字"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 resize-none min-h-20"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 resize-none min-h-20 ${
+                  title.length > 36
+                    ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
+                    : 'border-gray-300 focus:border-yellow-400 focus:ring-yellow-100'
+                }`}
               />
-              <div className="text-xs text-gray-500 text-right mt-1">{title.length} / 50 字</div>
+              <div className={`text-xs text-right mt-1 ${title.length > 36 ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
+                {title.length} / 36 (上限 50)
+              </div>
             </div>
 
             {/* 副標 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">副標說明文字</label>
+              <div className="flex justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">副標說明文字</label>
+                {subtitle.length > 20 && (
+                  <span className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded border border-red-200">說明文字過長</span>
+                )}
+              </div>
               <textarea
                 value={subtitle}
                 onChange={e => setSubtitle(e.target.value)}
                 maxLength={100}
                 placeholder="輸入副標說明，最多 100 字"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 resize-none min-h-20"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 resize-none min-h-20 ${
+                  subtitle.length > 20
+                    ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
+                    : 'border-gray-300 focus:border-yellow-400 focus:ring-yellow-100'
+                }`}
               />
-              <div className="text-xs text-gray-500 text-right mt-1">{subtitle.length} / 100 字</div>
+              <div className={`text-xs text-right mt-1 ${subtitle.length > 20 ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
+                {subtitle.length} / 20 (上限 100)
+              </div>
             </div>
 
             {/* AI 潤飾按鈕 */}
@@ -519,7 +529,7 @@ export default function Home() {
                               {notif.title}
                             </div>
                             {notif.subtitle && (
-                              <div className="text-xs text-gray-600 mb-1 line-clamp-2">
+                              <div className="text-xs text-gray-600 mb-1 line-clamp-1">
                                 {notif.subtitle}
                               </div>
                             )}

@@ -2,7 +2,6 @@ interface PolishCopyRequest {
   title?: string;
   subtitle?: string;
   campaignType?: string;
-  apiKey?: string;
 }
 
 interface GeminiError {
@@ -50,14 +49,14 @@ export async function polishCopyWithGemini(body: PolishCopyRequest) {
   const title = body.title?.trim() ?? "";
   const subtitle = body.subtitle?.trim() ?? "";
   const campaignType = body.campaignType?.trim() ?? "";
-  const apiKey = process.env.GEMINI_API_KEY || body.apiKey?.trim();
+  const apiKey = process.env.GEMINI_API_KEY;
 
   if (!title && !subtitle) {
     return { status: 400, body: { error: "請先輸入要潤飾的標題或副標" } };
   }
 
   if (!apiKey) {
-    return { status: 401, body: { error: "請設定 GEMINI_API_KEY，或輸入 Gemini API Key" } };
+    return { status: 503, body: { error: "後端尚未設定 GEMINI_API_KEY，AI 潤飾功能暫時無法使用" } };
   }
 
   const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
