@@ -521,13 +521,15 @@ export default function Home() {
                             📢
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-semibold text-gray-800 mb-1 line-clamp-2">
+                            <div className="flex items-start gap-1.5 mb-1">
                               {notif.tag && (
-                                <span className="inline-block border border-red-500 text-red-500 px-1.5 py-0.5 rounded text-xs font-semibold mr-1.5 align-middle">
+                                <span className="shrink-0 border border-red-500 text-red-500 px-1.5 py-0.5 rounded-full text-[10px] font-semibold mt-0.5 leading-none">
                                   {notif.tag}
                                 </span>
                               )}
-                              {notif.title}
+                              <div className="text-sm font-semibold text-gray-800 line-clamp-2 leading-tight">
+                                {notif.title}
+                              </div>
                             </div>
                             {notif.subtitle && (
                               <div className="text-xs text-gray-600 mb-1 line-clamp-1">
