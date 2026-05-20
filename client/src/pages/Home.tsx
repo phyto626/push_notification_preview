@@ -168,6 +168,7 @@ export default function Home() {
         setAiSuggestions(data.suggestions);
       }
     } catch (error: any) {
+      console.error('API Error:', error);
       toast.error('AI 潤飾暫時無法使用');
     } finally {
       setIsPolishing(false);

@@ -49,7 +49,7 @@ export async function polishCopyWithGemini(body: PolishCopyRequest) {
   const title = body.title?.trim() ?? "";
   const subtitle = body.subtitle?.trim() ?? "";
   const campaignType = body.campaignType?.trim() ?? "";
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
 
   if (!title && !subtitle) {
     return { status: 400, body: { error: "請先輸入要潤飾的標題或副標" } };
