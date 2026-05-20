@@ -46,6 +46,7 @@ export default function Home() {
   const [sendTime, setSendTime] = useState('');
   const [isPolishing, setIsPolishing] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
+  const [aiRecommendation, setAiRecommendation] = useState('');
   const [campaignType, setCampaignType] = useState('');
   const [notifCategory, setNotifCategory] = useState<Category>('activity');
   const [activeTab, setActiveTab] = useState<Category>('activity');
@@ -152,6 +153,7 @@ export default function Home() {
 
     setIsPolishing(true);
     setAiSuggestions([]);
+    setAiRecommendation('');
     try {
       let response = await fetch('/api/polish-copy', {
         method: 'POST',
@@ -166,6 +168,9 @@ export default function Home() {
 
       if (Array.isArray(data.suggestions)) {
         setAiSuggestions(data.suggestions);
+      }
+      if (data.recommendation) {
+        setAiRecommendation(data.recommendation);
       }
     } catch (error: any) {
       console.error('API Error:', error);
@@ -349,15 +354,23 @@ export default function Home() {
             {/* AI 潤飾建議 */}
             {aiSuggestions.length > 0 && (
               <div className="space-y-3 mt-4">
-                <div className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <div className="text-sm font-semibold text-gray-700 flex items-center justify-between">
                   <span>🎯 點選套用（CTR 優化建議）：</span>
                   <button
-                    onClick={() => setAiSuggestions([])}
+                    onClick={() => { setAiSuggestions([]); setAiRecommendation(''); }}
                     className="text-gray-400 hover:text-gray-600 text-xs px-2 py-1 rounded bg-gray-100 transition-colors"
                   >
                     關閉
                   </button>
                 </div>
+                {aiRecommendation && (
+                  <div className="border border-amber-200 bg-amber-50 p-3.5 rounded-lg shadow-sm flex items-start gap-2">
+                    <span className="text-base flex-shrink-0 mt-0.5">💡</span>
+                    <div className="text-xs text-amber-800 font-medium leading-relaxed">
+                      {aiRecommendation}
+                    </div>
+                  </div>
+                )}
                 <div className="grid gap-3">
                   {aiSuggestions.map((s, i) => (
                     <div

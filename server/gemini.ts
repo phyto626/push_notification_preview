@@ -13,33 +13,57 @@ interface GeminiError {
 const DEFAULT_MODEL = "gemini-3-flash-preview";
 
 function buildPrompt(title: string, subtitle: string, campaignType: string) {
-  const campaignContext = campaignType ? `\n活動類型：${campaignType}（請根據此類型調整文案的心理策略）` : "";
+  const campaignContext = campaignType ? `\n活動類型（供判斷情境參考）：${campaignType}` : "";
 
-  return `你是一位頂尖的 App 推播點擊率（CTR）優化專家，精通消費者心理學與行動行銷。你的唯一目標是：讓用戶看到通知的瞬間，無法抑制地想點進去。${campaignContext}
+  return `你是一位專業的 App 推播通知文案優化師，擅長運用行銷心理學原理，將草稿改寫成高點擊率、高轉化率的推播通知。${campaignContext}
 
-## 三大 CTR 設計原則
+## 格式規範
+- 標題（title）：上限 36 字（約兩行顯示空間），必須包含核心誘因
+- 副標（body）：上限 20 字，精準補充利益點或行動指引
+- Emoji：適量使用於標題開頭或關鍵詞前，增加視覺辨識度，不堆砌
 
-1. 前20字法則：手機通知預覽只顯示前 18-22 個中文字。「鉤子」必須在前20字內命中用戶，後面的字是加分，不是重點。
-2. 心理觸發器：每個版本必須明確運用一種心理機制（好奇缺口、FOMO 損失規避、利益具體化、社交認同、生活場景共鳴），不能混用，要集中火力。
-3. 去廣告感：禁止使用「限時」「獨家」「立即」「快來」等廣告詞彙開頭。改用提問、場景描述、或像朋友傳訊的口吻——讓用戶以為這條通知是專門為他發的。
+## 情境判斷 → 心理學原理選擇
+收到草稿後，先判斷推播的核心目的，再從下表選擇 1～2 個最契合的原理：
+- 限時優惠、搶購、庫存緊張   → 稀缺性與急迫性（損失規避）
+- 會員回饋、個人專屬通知     → 個人化與專屬感
+- 新功能、新商品、新內容上線  → 好奇心與探索欲
+- 抽獎、集點、任務、挑戰活動  → 利益驅動與獎勵機制
+- 教學、使用提醒、痛點解決   → 解決方案與價值提供
+- 所有情境皆可搭配           → 視覺吸引力（Emoji）＋明確 CTA
 
-## 請提供 3 組文案，每組使用不同心理觸發器
+## 寫作原則
+- 語氣親切自然，貼近台灣用戶日常用語，避免過度行銷腔
+- 每個版本的切入角度需有明顯差異，給使用者真正有意義的選擇
+- 標題必須含明確 CTA，如「立即領取」「點我搶購」「馬上看看」
+- 不誇大、不虛假承諾，維持品牌信任感
+- 副標（body）補充標題未說到的資訊，兩者不重複
 
-- 好奇缺口（Curiosity Gap）：製造資訊不完整感，讓用戶「不點就不知道答案」
-- 損失規避（FOMO）：強調「不點就會錯過」，利用人類厭惡損失的本能
-- 具體利益（Benefit Clarity）：直接告訴用戶點擊後能得到什麼具體好處，數字化、可視化
-
-請回傳單純的 JSON 陣列，不要包含任何 markdown 語法，格式為：
-[
-  {
-    "strategy": "好奇缺口",
-    "title": "標題（前20字必須有鉤子，總長限50字內）",
-    "subtitle": "副標（延續好奇或補充細節，口語化，限100字內）",
-    "reason": "一句話說明這個版本如何觸發點擊心理（15字內）"
-  },
-  {"strategy": "損失規避", "title": "...", "subtitle": "...", "reason": "..."},
-  {"strategy": "具體利益", "title": "...", "subtitle": "...", "reason": "..."}
-]
+## 輸出格式（必須回傳 JSON 物件）
+根據同一則草稿，提供三種切入角度明顯不同的版本，並且寫出一句推薦首選建議。
+請嚴格以 JSON 格式輸出，不要包含任何 markdown 語法（例如 \`\`\`json 等標記），格式如下：
+{
+  "suggestions": [
+    {
+      "strategy": "所用心理學原理名稱（例如：稀缺性與急迫性）",
+      "title": "標題（36 字以內，符合上述原則）",
+      "subtitle": "副標（20 字以內，符合上述原則）",
+      "reason": "一句話說明此版本的切入角度"
+    },
+    {
+      "strategy": "所用心理學原理名稱",
+      "title": "...",
+      "subtitle": "...",
+      "reason": "..."
+    },
+    {
+      "strategy": "所用心理學原理名稱",
+      "title": "...",
+      "subtitle": "...",
+      "reason": "..."
+    }
+  ],
+  "recommendation": "建議首選為版本 X，原因：[在此輸入推薦原因]"
+}
 
 原始標題：${title}
 原始副標：${subtitle}`;
@@ -88,10 +112,21 @@ export async function polishCopyWithGemini(body: PolishCopyRequest) {
   }
 
   aiResponseText = aiResponseText.replace(/```json/gi, "").replace(/```/g, "").trim();
-  const suggestions = JSON.parse(aiResponseText);
-  if (!Array.isArray(suggestions)) {
-    return { status: 502, body: { error: "Gemini API 回傳格式不正確" } };
-  }
+  try {
+    const parsedData = JSON.parse(aiResponseText);
+    if (!parsedData || typeof parsedData !== "object") {
+      return { status: 502, body: { error: "Gemini API 回傳格式不正確" } };
+    }
 
-  return { status: 200, body: { suggestions } };
+    const suggestions = parsedData.suggestions;
+    const recommendation = parsedData.recommendation;
+
+    if (!Array.isArray(suggestions)) {
+      return { status: 502, body: { error: "Gemini API 回傳的 suggestions 格式不正確" } };
+    }
+
+    return { status: 200, body: { suggestions, recommendation } };
+  } catch (e) {
+    return { status: 502, body: { error: "解析 Gemini 回傳的 JSON 失敗" } };
+  }
 }
