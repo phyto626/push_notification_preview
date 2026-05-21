@@ -1,5 +1,10 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTemplates, Template } from '@/hooks/useTemplates';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog';
+
 
 type Category = 'announcement' | 'activity' | 'personal';
 
@@ -50,6 +55,87 @@ export default function Home() {
   const [campaignType, setCampaignType] = useState('');
   const [notifCategory, setNotifCategory] = useState<Category>('activity');
   const [activeTab, setActiveTab] = useState<Category>('activity');
+
+  // 雲端範本庫 Hook 與狀態
+  const {
+    templates,
+    loading: templatesLoading,
+    error: templatesError,
+    isConfigured: isTemplatesConfigured,
+    saveTemplate,
+    deleteTemplate,
+    incrementUsedCount,
+  } = useTemplates();
+
+  const [isTemplatesLibraryOpen, setIsTemplatesLibraryOpen] = useState(false);
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [tplName, setTplName] = useState('');
+  const [tplToSave, setTplToSave] = useState<Omit<Template, 'id' | 'createdAt' | 'usedCount'> | null>(null);
+  const [sortBy, setSortBy] = useState<'createdAt' | 'usedCount'>('createdAt');
+
+  // 排序後的範本列表
+  const sortedTemplates = [...templates].sort((a, b) => {
+    if (sortBy === 'usedCount') {
+      return b.usedCount - a.usedCount;
+    }
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
+  const handleInitiateSaveTemplate = (notif: Notification) => {
+    const defaultName = `${notif.tag}${notif.title.slice(0, 10)}`;
+    setTplName(defaultName);
+    setTplToSave({
+      name: defaultName,
+      tag: notif.tag,
+      title: notif.title,
+      subtitle: notif.subtitle,
+      category: notif.category,
+    });
+    setIsSaveDialogOpen(true);
+  };
+
+  const handleConfirmSaveTemplate = async () => {
+    if (!tplToSave) return;
+    if (!tplName.trim()) {
+      toast.error('請輸入範本名稱');
+      return;
+    }
+
+    const success = await saveTemplate({
+      ...tplToSave,
+      name: tplName.trim(),
+    });
+
+    if (success) {
+      setIsSaveDialogOpen(false);
+      setTplToSave(null);
+    }
+  };
+
+  const handleApplyTemplate = async (tpl: Template) => {
+    setNotifCategory(tpl.category);
+    
+    const defaultTags = ['限時抽獎', '快閃優惠', '站點資訊', '會員服務', '全新商家'];
+    if (defaultTags.includes(tpl.tag)) {
+      setTag(tpl.tag);
+      setCustomTag('');
+    } else {
+      setTag('custom');
+      setCustomTag(tpl.tag);
+    }
+    
+    setTitle(tpl.title);
+    setSubtitle(tpl.subtitle);
+    setSendTime(''); // 不套用日期時間
+    
+    await incrementUsedCount(tpl.id);
+    
+    setIsTemplatesLibraryOpen(false);
+    setActiveTab(tpl.category);
+    
+    toast.success(`✓ 已套用範本「${tpl.name}」`);
+  };
+
 
   const MAX_NOTIFICATIONS = 5;
 
@@ -217,6 +303,136 @@ export default function Home() {
         <div className="bg-white rounded-lg p-8 shadow-lg">
           <h1 className="text-2xl font-bold mb-6 text-gray-800">📝 編輯推播通知</h1>
           <div className="space-y-5">
+
+            {/* 📚 範本庫摺疊區塊 */}
+            <Collapsible
+              open={isTemplatesLibraryOpen}
+              onOpenChange={setIsTemplatesLibraryOpen}
+              className="border border-purple-200 rounded-xl overflow-hidden shadow-sm bg-purple-50/20"
+            >
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between p-4 bg-purple-50 hover:bg-purple-100/70 transition-colors text-purple-900 font-semibold cursor-pointer">
+                  <span className="flex items-center gap-2">📚 範本庫 {templates.length > 0 && `(${templates.length})`}</span>
+                  <span>{isTemplatesLibraryOpen ? '▼' : '▶'}</span>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="p-4 border-t border-purple-100 bg-white">
+                {!isTemplatesConfigured ? (
+                  <div className="text-sm text-amber-600 bg-amber-50 border border-amber-200 p-3.5 rounded-lg flex items-start gap-2">
+                    <span className="text-base shrink-0 mt-0.5">⚠️</span>
+                    <div>
+                      <strong>未啟用雲端範本庫</strong>
+                      <p className="text-xs text-amber-500 mt-1 leading-normal">
+                        請先設定環境變數 <code>VITE_TEMPLATES_API_URL</code> 以啟用雲端同步功能。
+                      </p>
+                    </div>
+                  </div>
+                ) : templatesLoading && templates.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-gray-500">
+                    載入範本中...
+                  </div>
+                ) : templatesError ? (
+                  <div className="text-sm text-red-600 bg-red-50 border border-red-200 p-3.5 rounded-lg flex items-start gap-2">
+                    <span className="text-base shrink-0 mt-0.5">❌</span>
+                    <div>
+                      <strong>載入失敗</strong>
+                      <p className="text-xs text-red-500 mt-1 leading-normal">{templatesError}</p>
+                    </div>
+                  </div>
+                ) : templates.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-gray-400 leading-normal">
+                    尚無儲存的範本。點擊已新增通知右側的 📌 來儲存範本！
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* 排序及資訊列 */}
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-500 font-medium">共 {templates.length} 筆範本（上限 50 筆）</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-gray-400">排序：</span>
+                        <select
+                          value={sortBy}
+                          onChange={e => setSortBy(e.target.value as 'createdAt' | 'usedCount')}
+                          className="border border-gray-300 rounded px-2.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400 text-gray-600 cursor-pointer"
+                        >
+                          <option value="createdAt">建立時間 (新到舊)</option>
+                          <option value="usedCount">使用次數 (多到少)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* 範本卡片 Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[320px] overflow-y-auto pr-1">
+                      {sortedTemplates.map(tpl => (
+                        <div key={tpl.id} className="border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow flex flex-col justify-between bg-gray-50/50">
+                          <div>
+                            <div className="flex justify-between items-start gap-2 mb-1.5">
+                              <span className="font-bold text-sm text-gray-800 truncate" title={tpl.name}>
+                                {tpl.name}
+                              </span>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold shrink-0 ${
+                                tpl.category === 'announcement' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                                tpl.category === 'activity' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
+                                'bg-green-100 text-green-800 border border-green-200'
+                              }`}>
+                                {CATEGORY_LABELS[tpl.category]}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 truncate mb-3" title={tpl.title}>
+                              {tpl.title}
+                            </p>
+                          </div>
+                          <div className="flex justify-between items-center border-t border-gray-100 pt-2.5 mt-auto">
+                            <span className="text-[10px] text-gray-400">
+                              套用 {tpl.usedCount} 次
+                            </span>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleApplyTemplate(tpl)}
+                                className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 rounded font-semibold transition-colors cursor-pointer"
+                              >
+                                套用
+                              </button>
+                              
+                              {/* 刪除確認的 AlertDialog */}
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <button className="bg-white hover:bg-red-50 text-red-600 border border-red-200 hover:border-red-300 text-xs px-3 py-1 rounded font-semibold transition-colors cursor-pointer">
+                                    刪除
+                                  </button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="bg-white border border-gray-200 rounded-xl shadow-lg p-6 max-w-sm">
+                                  <AlertDialogHeader className="mb-4">
+                                    <AlertDialogTitle className="text-lg font-bold text-gray-800">
+                                      確認刪除此範本？
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription className="text-xs text-gray-500 mt-1 leading-normal">
+                                      這將會從雲端永久刪除範本「<strong>{tpl.name}</strong>」，此動作無法復原。
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter className="flex justify-end gap-2 border-t border-gray-100 pt-4 mt-4">
+                                    <AlertDialogCancel className="px-4 py-2 border border-gray-300 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
+                                      取消
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => deleteTemplate(tpl.id)}
+                                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                                    >
+                                      確認刪除
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+
 
             {/* F2: 通知類型 Toggle Button */}
             <div>
@@ -454,12 +670,21 @@ export default function Home() {
                         </span>
                         <strong>{n.tag}</strong>: {n.title}
                       </div>
-                      <button
-                        onClick={() => deleteNotification(n.id)}
-                        className="ml-3 bg-red-500 text-white px-3 py-1 rounded text-xs font-medium hover:bg-red-600 transition-all"
-                      >
-                        刪除
-                      </button>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={() => handleInitiateSaveTemplate(n)}
+                          className="bg-purple-100 text-purple-700 px-2.5 py-1 rounded text-xs font-medium hover:bg-purple-200 transition-all flex items-center gap-0.5 cursor-pointer"
+                          title="存為範本"
+                        >
+                          📌 存為範本
+                        </button>
+                        <button
+                          onClick={() => deleteNotification(n.id)}
+                          className="bg-red-500 text-white px-3 py-1 rounded text-xs font-medium hover:bg-red-600 transition-all cursor-pointer"
+                        >
+                          刪除
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -571,6 +796,52 @@ export default function Home() {
         </div>
 
       </div>
+
+      {/* 儲存範本的命名對話框 */}
+      <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-white border border-gray-200 rounded-xl shadow-lg p-6">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              📌 儲存為範本
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-400 mt-1 leading-normal">
+              設定範本名稱後，即可隨時在範本庫中快速套用此通知內容。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                範本名稱
+              </label>
+              <input
+                type="text"
+                value={tplName}
+                onChange={e => setTplName(e.target.value)}
+                placeholder="請輸入範本名稱"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 text-sm"
+              />
+            </div>
+            <div className="bg-purple-50 text-purple-800 p-3.5 rounded-lg text-xs leading-relaxed">
+              💡 預設名稱為：<strong>[標籤] + 標題前 10 字</strong>。儲存後可隨時在「📚 範本庫」中查看與套用。
+            </div>
+          </div>
+          <DialogFooter className="flex justify-end gap-2 border-t border-gray-100 pt-4 mt-4">
+            <button
+              onClick={() => setIsSaveDialogOpen(false)}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              取消
+            </button>
+            <button
+              onClick={handleConfirmSaveTemplate}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors cursor-pointer"
+            >
+              儲存範本
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 }
