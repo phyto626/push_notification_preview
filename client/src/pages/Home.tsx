@@ -72,6 +72,7 @@ export default function Home() {
   const [tplName, setTplName] = useState('');
   const [tplToSave, setTplToSave] = useState<Omit<Template, 'id' | 'createdAt' | 'usedCount'> | null>(null);
   const [sortBy, setSortBy] = useState<'createdAt' | 'usedCount'>('createdAt');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   // 排序後的範本列表
   const sortedTemplates = [...templates].sort((a, b) => {
@@ -80,6 +81,20 @@ export default function Home() {
     }
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
+
+  // 動態從範本庫取出所有唯一 tag
+  const availableTags = Array.from(new Set(templates.map(t => t.tag)));
+
+  // Tag 篩選（OR 邏輯）疊加在排序結果上
+  const filteredTemplates = sortedTemplates.filter(tpl =>
+    selectedTags.length === 0 || selectedTags.includes(tpl.tag)
+  );
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
 
   const handleInitiateSaveTemplate = (notif: Notification) => {
     const defaultName = `${notif.tag}${notif.title.slice(0, 10)}`;
@@ -90,6 +105,23 @@ export default function Home() {
       title: notif.title,
       subtitle: notif.subtitle,
       category: notif.category,
+    });
+    setIsSaveDialogOpen(true);
+  };
+
+  // 存為範本（草稿）— 資料來源為 draftNotification
+  const handleInitiateSaveDraftTemplate = () => {
+    if (!draftNotification) return;
+    const selectedTag = draftNotification.tag;
+    if (!selectedTag) { toast.error('請選擇或輸入活動標籤'); return; }
+    const defaultName = `${selectedTag}${draftNotification.title.slice(0, 10)}`;
+    setTplName(defaultName);
+    setTplToSave({
+      name: defaultName,
+      tag: selectedTag,
+      title: draftNotification.title,
+      subtitle: draftNotification.subtitle,
+      category: draftNotification.category,
     });
     setIsSaveDialogOpen(true);
   };
@@ -203,36 +235,6 @@ export default function Home() {
     setSendTime('');
   };
 
-  const loadDemoNotifications = () => {
-    const demos: Notification[] = [
-      {
-        id: Date.now() + 1,
-        tag: '獨家優惠',
-        title: '🛒限時搶購！全館8折起！',
-        subtitle: '手刀快搶，好物不等人！錯過這次再等明年。',
-        sendTime: new Date(Date.now() + 86400000).toISOString().slice(0, 16),
-        category: 'activity',
-      },
-      {
-        id: Date.now() + 2,
-        tag: '會員專屬',
-        title: '🎁你的專屬禮物已送達！',
-        subtitle: '點擊領取，驚喜好禮等你開箱！數量有限！',
-        sendTime: new Date(Date.now() + 172800000).toISOString().slice(0, 16),
-        category: 'activity',
-      },
-      {
-        id: Date.now() + 3,
-        tag: '限時抽獎',
-        title: '💰週週抽萬元購物金！',
-        subtitle: '點我抽獎！每週最高可得 10,000 元購物金。',
-        sendTime: new Date(Date.now() + 259200000).toISOString().slice(0, 16),
-        category: 'activity',
-      },
-    ];
-    setNotifications(demos);
-    setActiveTab('activity');
-  };
 
   const polishCopy = async () => {
     if (!title && !subtitle) { toast.error('請先輸入要潤飾的標題或副標'); return; }
@@ -361,9 +363,36 @@ export default function Home() {
                       </div>
                     </div>
 
+                    {/* Tag 篩選籤 */}
+                    {availableTags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {availableTags.map(tagItem => (
+                          <button
+                            key={tagItem}
+                            onClick={() => toggleTag(tagItem)}
+                            className={`text-[11px] px-2.5 py-1 rounded-full border font-medium transition-colors cursor-pointer ${
+                              selectedTags.includes(tagItem)
+                                ? 'bg-purple-600 text-white border-purple-600'
+                                : 'bg-white text-gray-500 border-gray-300 hover:border-purple-400 hover:text-purple-600'
+                            }`}
+                          >
+                            {tagItem}
+                          </button>
+                        ))}
+                        {selectedTags.length > 0 && (
+                          <button
+                            onClick={() => setSelectedTags([])}
+                            className="text-[11px] px-2.5 py-1 rounded-full border border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200 transition-colors cursor-pointer"
+                          >
+                            ✕ 清除篩選
+                          </button>
+                        )}
+                      </div>
+                    )}
+
                     {/* 範本卡片 Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[320px] overflow-y-auto pr-1">
-                      {sortedTemplates.map(tpl => (
+                      {filteredTemplates.map(tpl => (
                         <div key={tpl.id} className="border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow flex flex-col justify-between bg-gray-50/50">
                           <div>
                             <div className="flex justify-between items-start gap-2 mb-1.5">
@@ -639,10 +668,11 @@ export default function Home() {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={loadDemoNotifications}
-                className="flex-1 bg-blue-500 text-white py-2 rounded-lg font-medium hover:bg-blue-600 transition-all hover:shadow-lg hover:-translate-y-0.5"
+                onClick={handleInitiateSaveDraftTemplate}
+                disabled={!draftNotification}
+                className="flex-1 bg-purple-100 text-purple-700 py-2 rounded-lg font-medium hover:bg-purple-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:shadow-lg hover:-translate-y-0.5"
               >
-                💡 載入範例
+                📌 存為範本（草稿）
               </button>
               <button
                 onClick={copyText}
@@ -653,11 +683,13 @@ export default function Home() {
             </div>
 
             {/* 已新增通知列表 */}
-            {notifications.length > 0 && (
-              <div className="border-t pt-6 mt-6">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">
-                  已新增的通知 ({notifications.length}/{MAX_NOTIFICATIONS})
-                </h3>
+            <div className="border-t pt-6 mt-6">
+              <h3 className="text-sm font-semibold text-gray-700 mb-4">
+                已新增的通知 ({notifications.length}/{MAX_NOTIFICATIONS})
+              </h3>
+              {notifications.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">新增通知後將顯示於此</p>
+              ) : (
                 <div className="space-y-2">
                   {notifications.map(n => (
                     <div
@@ -688,8 +720,8 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 

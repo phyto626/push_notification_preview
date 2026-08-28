@@ -10,7 +10,7 @@ interface GeminiError {
   };
 }
 
-const DEFAULT_MODEL = "gemini-3-flash-preview";
+const DEFAULT_MODEL = "gemini-3.6-flash";
 
 function buildPrompt(title: string, subtitle: string, campaignType: string) {
   const campaignContext = campaignType ? `\n活動類型（供判斷情境參考）：${campaignType}` : "";
