@@ -541,7 +541,7 @@ export default function Home() {
                 <label className="block text-sm font-medium text-gray-700">
                   標題文字 *
                 </label>
-                {title.length > 36 && (
+                {title.length > 24 && (
                   <span className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded border border-red-200">標題過長，將被截斷</span>
                 )}
               </div>
@@ -551,13 +551,13 @@ export default function Home() {
                 maxLength={50}
                 placeholder="輸入通知標題，最多 50 字"
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 resize-none min-h-20 ${
-                  title.length > 36
+                  title.length > 24
                     ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
                     : 'border-gray-300 focus:border-yellow-400 focus:ring-yellow-100'
                 }`}
               />
-              <div className={`text-xs text-right mt-1 ${title.length > 36 ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
-                {title.length} / 36 (上限 50)
+              <div className={`text-xs text-right mt-1 ${title.length > 24 ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
+                {title.length} / 24 (上限 50)
               </div>
             </div>
 
