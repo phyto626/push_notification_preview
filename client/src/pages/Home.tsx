@@ -778,6 +778,10 @@ export default function Home() {
                   <div>
                     {previewNotifications.map(notif => {
                       const isDraft = notif.id === -1;
+                      const isTitleExceeded = notif.title.length > 24;
+                      const displayTitle = isTitleExceeded
+                        ? `${notif.title.slice(0, 24)}...`
+                        : notif.title;
                       return (
                         <div
                           key={notif.id}
@@ -797,12 +801,15 @@ export default function Home() {
                                   {notif.tag}
                                 </span>
                               )}
-                              <div className="text-sm font-semibold text-gray-800 line-clamp-2 leading-tight">
-                                {notif.title}
+                              <div
+                                className="text-sm font-semibold text-gray-800 line-clamp-2 leading-tight"
+                                title={notif.title}
+                              >
+                                {displayTitle}
                               </div>
                             </div>
                             {notif.subtitle && (
-                              <div className="text-xs text-gray-600 mb-1 line-clamp-1">
+                              <div className="text-xs text-gray-600 mb-1 line-clamp-1" title={notif.subtitle}>
                                 {notif.subtitle}
                               </div>
                             )}
@@ -813,6 +820,11 @@ export default function Home() {
                                 </span>
                               ) : (
                                 <span>{formatSendTime(notif.sendTime)}</span>
+                              )}
+                              {isTitleExceeded && (
+                                <span className="text-[10px] text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-200">
+                                  已截斷 (超過24字)
+                                </span>
                               )}
                             </div>
                           </div>

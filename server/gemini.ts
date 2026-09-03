@@ -18,7 +18,7 @@ function buildPrompt(title: string, subtitle: string, campaignType: string) {
   return `你是一位專業的 App 推播通知文案優化師，擅長運用行銷心理學原理，將草稿改寫成高點擊率、高轉化率的推播通知。${campaignContext}
 
 ## 格式規範
-- 標題（title）：上限 36 字（約兩行顯示空間），必須包含核心誘因
+- 標題（title）：上限 24 字（避免在手機 App 被截斷），必須包含核心誘因
 - 副標（body）：上限 20 字，精準補充利益點或行動指引
 - Emoji：適量使用於標題開頭或關鍵詞前，增加視覺辨識度，不堆砌
 
@@ -55,7 +55,7 @@ function buildPrompt(title: string, subtitle: string, campaignType: string) {
   "suggestions": [
     {
       "strategy": "所用心理學原理名稱（例如：稀缺性與急迫性）",
-      "title": "標題（36 字以內，符合上述原則）",
+      "title": "標題（24 字以內，符合上述原則）",
       "subtitle": "副標（20 字以內，符合上述原則）",
       "reason": "一句話說明此版本的切入角度"
     },
